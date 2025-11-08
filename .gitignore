@@ -1,0 +1,15 @@
+# CocoaPods
+Pods/
+
+# 빌드 중간 산출물
+build/
+.build/
+ios_sim.xcarchive/
+
+# 추출 산출물 — 저장소에 커밋하지 않고 GitHub Release로 배포한다
+Results/
+dist/
+
+# Xcode / macOS
+xcuserdata/
+.DS_Store
