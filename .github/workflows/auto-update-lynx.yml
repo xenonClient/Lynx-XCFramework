@@ -1,0 +1,88 @@
+# CocoaPods trunk의 최신(또는 지정) Lynx 버전으로 Podfile을 갱신하는 PR을 올린다 (수동 실행).
+# PR이 머지되면 update-lynx.yml(main push + Podfile 경로 필터)이 실제 빌드/릴리스를 수행한다.
+#
+# 주의: Actions가 PR을 만들 수 있도록 저장소 설정을 켜야 한다:
+#   Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests"
+name: Bump Lynx Version (PR)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Lynx 버전 (예: 3.9.0 — 비우면 CocoaPods 최신 정식 버전)"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 버전 결정
+        id: version
+        run: |
+          VERSION="${{ inputs.version }}"
+          if [[ -z "${VERSION}" ]]; then
+            VERSION="$(scripts/latest-pod-version.sh Lynx)"
+          fi
+          CURRENT="$(sed -nE "s/^ *pod 'Lynx', '([0-9.]+)'.*/\1/p" Podfile)"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "current=${CURRENT}" >> "$GITHUB_OUTPUT"
+          echo "▶︎ 현재 ${CURRENT} → 대상 ${VERSION}"
+          if [[ "${VERSION}" == "${CURRENT}" ]]; then
+            echo "::notice::Podfile이 이미 ${VERSION}입니다 — PR을 만들지 않습니다"
+            echo "SKIP=1" >> "$GITHUB_ENV"
+          fi
+
+      - name: 기존 PR 확인
+        if: env.SKIP != '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          OPEN=$(gh pr list --repo "${{ github.repository }}" \
+            --head "bump-lynx-${{ steps.version.outputs.version }}" --state open \
+            --json number --jq length)
+          if [[ "${OPEN}" != "0" ]]; then
+            echo "::notice::bump-lynx-${{ steps.version.outputs.version }} PR이 이미 열려 있습니다 — 건너뜁니다"
+            echo "SKIP=1" >> "$GITHUB_ENV"
+          fi
+
+      - name: Podfile 갱신 + PR 생성
+        if: env.SKIP != '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          BRANCH="bump-lynx-${VERSION}"
+
+          scripts/set-lynx-version.sh "${VERSION}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "${BRANCH}"
+          git add Podfile
+          git commit -m "chore: Lynx ${VERSION}로 버전 업"
+          git push -f origin "${BRANCH}"
+
+          {
+            echo "Podfile의 Lynx 버전 고정 갱신: \`${{ steps.version.outputs.current }}\` → \`${VERSION}\`"
+            echo
+            echo "나머지 pod(PrimJS / LynxService / SDWebImage 등)의 버전은 머지 후 빌드 워크플로의"
+            echo "\`pod install\`이 podspec 의존성 제약대로 해석해 \`Podfile.lock\`에 기록합니다."
+            echo "(예: Lynx 3.9.0 → PrimJS/quickjs \`3.8.0-alpha.6\` 정확 고정)"
+            echo
+            echo "머지되면 **Build & Release XCFramework** 워크플로가 XCFramework를 빌드해 릴리스 \`${VERSION}\`을 생성합니다."
+          } > "${RUNNER_TEMP}/pr-body.md"
+
+          gh pr create \
+            --repo "${{ github.repository }}" \
+            --base main --head "${BRANCH}" \
+            --title "chore: Lynx ${VERSION}로 버전 업" \
+            --body-file "${RUNNER_TEMP}/pr-body.md"

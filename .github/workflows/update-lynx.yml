@@ -1,0 +1,141 @@
+# Podfile에 고정된 Lynx 버전으로 XCFramework를 빌드해 GitHub Release로 배포한다.
+#
+# 트리거:
+#   - main에 Podfile 변경이 push될 때 — auto-update-lynx.yml이 올린 버전 업 PR 머지 포함
+#     (저장소 최초 push처럼 diff를 계산할 수 없는 push에도 실행되어 부트스트랩 릴리스를 만든다)
+#   - workflow_dispatch (재실행용)
+#
+# 수행 내용:
+#   1. Podfile의 Lynx 버전 확인 — 같은 버전 릴리스가 이미 있으면 종료
+#   2. pod install → build.sh (device + simulator XCFramework 추출)
+#   3. xcframework zip + checksum → Package.swift 재생성 (url:checksum: 기반)
+#   4. Podfile.lock/Package.swift 커밋 → 버전 태그로 GitHub Release 생성 + zip 업로드
+#
+# 봇이 GITHUB_TOKEN으로 푸시하는 매니페스트 커밋은 워크플로를 재트리거하지 않는다
+# (Podfile 경로 필터에도 걸리지 않음) — 루프 없음.
+name: Build & Release XCFramework
+
+on:
+  push:
+    branches: [main]
+    paths: [Podfile]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-lynx
+  cancel-in-progress: false
+
+jobs:
+  build-release:
+    # build.sh는 Xcode 툴체인만 요구한다. macos-26 라벨을 못 쓰는 환경이면 macos-15로 낮출 것.
+    runs-on: macos-26
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 버전 확인
+        id: version
+        run: |
+          VERSION="$(sed -nE "s/^ *pod 'Lynx', '([0-9.]+)'.*/\1/p" Podfile)"
+          [[ -n "${VERSION}" ]] || { echo "::error::Podfile에서 Lynx 버전을 찾지 못했습니다"; exit 1; }
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "▶︎ Lynx ${VERSION}"
+
+      - name: 기존 릴리스 확인
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${{ steps.version.outputs.version }}" --repo "${{ github.repository }}" > /dev/null 2>&1; then
+            echo "::notice::릴리스 ${{ steps.version.outputs.version }}가 이미 존재하므로 건너뜁니다"
+            echo "SKIP=1" >> "$GITHUB_ENV"
+          fi
+
+      - name: pod install
+        if: env.SKIP != '1'
+        run: pod install --repo-update
+
+      # SIGNING_CERTIFICATE_P12(base64 .p12) / P12_PASSWORD / KEYCHAIN_PASSWORD secret 필요.
+      # 임시 키체인에 인증서를 설치해 build.sh의 codesign(TFLQDNW4Z9)이 동작하게 한다.
+      # 러너는 잡 종료 시 폐기되므로 별도 키체인 정리는 불필요하다.
+      - name: 서명 인증서 설치
+        if: env.SKIP != '1'
+        env:
+          CERT_B64: ${{ secrets.SIGNING_CERTIFICATE_P12 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          if [[ -z "${CERT_B64}" ]]; then
+            echo "::warning::SIGNING_CERTIFICATE_P12 secret이 없어 서명 없이 빌드합니다"
+            echo "NO_SIGN=1" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          CERT_PATH="${RUNNER_TEMP}/cert.p12"
+          KEYCHAIN_PATH="${RUNNER_TEMP}/signing.keychain-db"
+
+          echo -n "${CERT_B64}" | base64 --decode -o "${CERT_PATH}"
+
+          security create-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
+          security set-keychain-settings -lut 21600 "${KEYCHAIN_PATH}"
+          security unlock-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
+
+          security import "${CERT_PATH}" -P "${P12_PASSWORD}" -A -t cert -f pkcs12 -k "${KEYCHAIN_PATH}"
+          # 비대화형 환경에서 codesign이 개인키에 접근할 수 있게 허용
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
+          security list-keychains -d user -s "${KEYCHAIN_PATH}" login.keychain
+
+          security find-identity -v -p codesigning "${KEYCHAIN_PATH}"
+
+      - name: XCFramework 추출
+        if: env.SKIP != '1'
+        run: |
+          if [[ "${NO_SIGN:-0}" == "1" ]]; then
+            SIGN_IDENTITY= ./build.sh
+          else
+            ./build.sh   # build.sh 기본 identity(TFLQDNW4Z9)로 xcframework 서명
+          fi
+
+      - name: 빌드 로그 업로드 (실패 시)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: build/*.log
+          if-no-files-found: ignore
+
+      - name: zip + Package.swift 생성
+        if: env.SKIP != '1'
+        run: scripts/make-manifest.sh "${{ steps.version.outputs.version }}" "${{ github.repository }}"
+
+      - name: 매니페스트 커밋
+        if: env.SKIP != '1'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Podfile.lock Package.swift
+          if git diff --cached --quiet; then
+            echo "변경 사항 없음 — 커밋 생략"
+          else
+            git commit -m "chore: Lynx ${{ steps.version.outputs.version }} 매니페스트 갱신"
+            git push
+          fi
+
+      # 릴리스 태그 = Lynx 버전. 같은 이름의 태그가 이미 있으면 현재 커밋으로 강제 이동한다.
+      - name: 버전 태그 갱신
+        if: env.SKIP != '1'
+        run: |
+          git tag -f "${{ steps.version.outputs.version }}"
+          git push -f origin "refs/tags/${{ steps.version.outputs.version }}"
+
+      - name: 릴리스 생성
+        if: env.SKIP != '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.version.outputs.version }}" dist/*.zip \
+            --repo "${{ github.repository }}" \
+            --title "Lynx ${{ steps.version.outputs.version }}" \
+            --notes "$(sed -nE 's|^  - ([A-Za-z0-9_]+)(/[^ ]+)? \(([0-9][^)]*)\):?$|\1 \3|p' Podfile.lock | sort -u)"
