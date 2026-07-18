@@ -9,7 +9,7 @@ target 'Lynx-MiniApp' do
   #   예) Lynx 3.6.0 → PrimJS/quickjs = 3.6.1 (정확 고정)
   #       Lynx 3.9.0 → PrimJS/quickjs = 3.8.0-alpha.6 (정확 고정)
   #       LynxService/Image → SDWebImage = 5.15.5, SDWebImageWebPCoder = 0.11.0
-  pod 'Lynx', '3.6.0', :subspecs => [
+  pod 'Lynx', '3.9.0', :subspecs => [
     'Framework',
   ]
   pod 'PrimJS', :subspecs => ['quickjs', 'napi']
