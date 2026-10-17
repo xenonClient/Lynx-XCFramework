@@ -58,6 +58,8 @@ Podfile (버전 고정)
                                       # BUILD_LIBRARY_FOR_DISTRIBUTION=YES, 서명 없음
                                       # 크기 최적화(-Oz / -Osize / thin LTO / strip) 적용
   → xcrun xcodebuild -create-xcframework   # 프레임워크별 device+sim 슬라이스 병합
+  → PrivacyInfo.xcprivacy 주입             # PrivacyManifests/<F>.xcprivacy가 있는 프레임워크만
+                                           #  (SDWebImage — ITMS-91061, docs/EXTRACTION.md §1)
   → PrivateHeaders 제거 (SLIM_HEADERS=1, 기본)
   → codesign (완성된 xcframework에만)
   → Results/*.xcframework             # 8개
