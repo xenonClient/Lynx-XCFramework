@@ -166,6 +166,32 @@ for framework in "${FRAMEWORKS[@]}"; do
   rm -rf "${OUTPUT_DIR}/${framework}.xcframework"
   xcrun xcodebuild -create-xcframework "${args[@]}" -output "${OUTPUT_DIR}/${framework}.xcframework" > /dev/null
 
+  # PrivacyManifests/<F>.xcprivacy가 있으면 슬라이스별 <F>.framework 루트에 PrivacyInfo.xcprivacy로 넣는다.
+  # Apple이 지정한 "commonly used third-party SDK"는 프레임워크 안에 privacy manifest가 없으면
+  # App Store Connect 업로드가 ITMS-91061로 거부된다. 이 목록에 든 것은 SDWebImage뿐이다.
+  #
+  # 우회 조치다: SDWebImage는 5.18.5부터 자체 manifest를 포함하지만, LynxService podspec이
+  # SDWebImage를 = 5.15.5로 정확히 고정해 이 저장소에서 버전을 올릴 수 없다. 그래서 upstream
+  # 5.21.7의 WebImage/PrivacyInfo.xcprivacy를 그대로 가져와 넣는다. 선언 내용(FileTimestamp C617.1)은
+  # 5.15.5의 iOS 코드(SDDiskCache.m의 NSURLContentModificationDateKey 계열)와 대조해 확인했다.
+  # LynxService가 5.18.5 이상을 허용하게 되면 이 주입과 PrivacyManifests/SDWebImage.xcprivacy를 다시 검토한다.
+  #
+  # 서명 전에 넣어야 _CodeSignature가 실제 내용과 어긋나지 않는다.
+  manifest="PrivacyManifests/${framework}.xcprivacy"
+  if [[ -f "${manifest}" ]]; then
+    copied=0
+    while IFS= read -r framework_dir; do
+      [[ -n "${framework_dir}" ]] || continue
+      cp "${manifest}" "${framework_dir}/PrivacyInfo.xcprivacy"
+      echo "  · PrivacyInfo.xcprivacy 추가: ${framework_dir#"${OUTPUT_DIR}/"}"
+      copied=$((copied + 1))
+    done < <(find "${OUTPUT_DIR}/${framework}.xcframework" -mindepth 2 -maxdepth 2 -type d -name "${framework}.framework")
+    if [[ "${copied}" -eq 0 ]]; then
+      echo "✗ ${framework}: PrivacyInfo.xcprivacy를 넣을 슬라이스를 찾지 못했습니다" >&2
+      exit 1
+    fi
+  fi
+
   # 서명 전에 제거해야 _CodeSignature가 실제 내용과 어긋나지 않는다.
   if [[ "${SLIM_HEADERS}" == "1" ]]; then
     while IFS= read -r private_headers; do
