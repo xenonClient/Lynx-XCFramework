@@ -14,6 +14,12 @@ CocoaPods 없는 환경(SPM `binaryTarget`, Tuist xcframework 의존성)에서 �
    - 산출: `build/ios_device.xcarchive`, `build/ios_sim.xcarchive` (+ 각 `.log`)
 2. **create-xcframework** — 각 아카이브의 `Products/Library/Frameworks/<F>.framework`를
    `FRAMEWORKS` 배열 항목별로 병합해 `Results/<F>.xcframework`를 만든다.
+   - `PrivacyManifests/<F>.xcprivacy`가 있는 프레임워크는 슬라이스별 `<F>.framework/`에
+     `PrivacyInfo.xcprivacy`로 복사한다. 지금은 SDWebImage 하나다. Apple의 "commonly used
+     third-party SDK" 목록에 들어 있어서, manifest가 없으면 App Store Connect가 ITMS-91061로
+     업로드를 거부한다. SDWebImage는 5.18.5부터 manifest를 직접 포함한다. 하지만 LynxService
+     podspec이 `= 5.15.5`로 고정하고 있어서 upstream 5.21.7의 파일을 대신 넣는다. 우회
+     조치이므로 LynxService가 이 고정을 풀면 다시 검토한다.
 3. **PrivateHeaders 제거** (`SLIM_HEADERS=1`, 기본) — 서명 직전에 슬라이스별
    `PrivateHeaders/`를 지운다. 어느 프레임워크에도 `module.private.modulemap`이 없어서
    모듈로는 노출되지 않는 헤더들이다 (Lynx 909개 6.3MB, LynxBase 137개 1.7MB,
