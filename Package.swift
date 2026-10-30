@@ -1,7 +1,7 @@
 // swift-tools-version: 5.9
 //
 // ⚠️ scripts/make-manifest.sh가 생성하는 파일 — 직접 수정하지 말 것.
-// 바이너리는 GitHub Release(4.0.3) 자산을 가리킨다.
+// 바이너리는 GitHub Release(4.2.0) 자산을 가리킨다.
 import PackageDescription
 
 let package = Package(
@@ -26,43 +26,43 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "Lynx",
-            url: "https://github.com/xenonClient/Lynx-XCFramework/releases/download/4.0.3/Lynx.xcframework.zip",
-            checksum: "d3e887e91eb8d50777b5a1b0c06324b1e1c383f08bce9bdea6c414e3a294dce2"
+            url: "https://github.com/xenonClient/Lynx-XCFramework/releases/download/4.2.0/Lynx.xcframework.zip",
+            checksum: "1044630f67157ef23acf45fc68da9fd49aba86bf7b7ece65d7f48ad9096bc9ca"
         ),
         .binaryTarget(
             name: "LynxBase",
-            url: "https://github.com/xenonClient/Lynx-XCFramework/releases/download/4.0.3/LynxBase.xcframework.zip",
-            checksum: "cc5d2f028afaed5d509f55e9d865f59430538ac10993abc37c645a3b80b13d6d"
+            url: "https://github.com/xenonClient/Lynx-XCFramework/releases/download/4.2.0/LynxBase.xcframework.zip",
+            checksum: "8d5ad22358cfdf29c86479e80cef4965298ae344a22ad79330243a2da7054d9b"
         ),
         .binaryTarget(
             name: "LynxService",
-            url: "https://github.com/xenonClient/Lynx-XCFramework/releases/download/4.0.3/LynxService.xcframework.zip",
-            checksum: "fbb707fb0bf1fffb4e2aad33d95d6c80c59eb0a91d2426709847cd509f6140fd"
+            url: "https://github.com/xenonClient/Lynx-XCFramework/releases/download/4.2.0/LynxService.xcframework.zip",
+            checksum: "dfa8b82abe06a632ab5d7892ad3acbaeb0daf46ea161c218d7218093532fe22a"
         ),
         .binaryTarget(
             name: "LynxServiceAPI",
-            url: "https://github.com/xenonClient/Lynx-XCFramework/releases/download/4.0.3/LynxServiceAPI.xcframework.zip",
-            checksum: "4f15cd3e285b26b2adbb629504bd93bf97c11b92afb0940d96fc31d011ad1eea"
+            url: "https://github.com/xenonClient/Lynx-XCFramework/releases/download/4.2.0/LynxServiceAPI.xcframework.zip",
+            checksum: "f2615f9f0ff1ce191c28da35739c21ba77b527949b63d16463a999f184cf81e2"
         ),
         .binaryTarget(
             name: "PrimJS",
-            url: "https://github.com/xenonClient/Lynx-XCFramework/releases/download/4.0.3/PrimJS.xcframework.zip",
-            checksum: "e304197cfb3b8914d4ec53d413e9f99bd012b5dbf60c5d4825a4a6feae5ad7cd"
+            url: "https://github.com/xenonClient/Lynx-XCFramework/releases/download/4.2.0/PrimJS.xcframework.zip",
+            checksum: "b27b663f356b8914208537b829ed3d63f6cefa399e0387c2c7ba32e4a95e9f4b"
         ),
         .binaryTarget(
             name: "SDWebImage",
-            url: "https://github.com/xenonClient/Lynx-XCFramework/releases/download/4.0.3/SDWebImage.xcframework.zip",
-            checksum: "d7cd80e220af4595568a8e5fc542d52e43db339cdb5e4643b0475543df5602b0"
+            url: "https://github.com/xenonClient/Lynx-XCFramework/releases/download/4.2.0/SDWebImage.xcframework.zip",
+            checksum: "2e46c0851ae4592a5018b94a0079d0540996ca75897ffbd42fed6c56132c8b7b"
         ),
         .binaryTarget(
             name: "SDWebImageWebPCoder",
-            url: "https://github.com/xenonClient/Lynx-XCFramework/releases/download/4.0.3/SDWebImageWebPCoder.xcframework.zip",
-            checksum: "2cf7b8ffdee33084ab124d02c7eb4c33a2a585183edee62837f6171250b56552"
+            url: "https://github.com/xenonClient/Lynx-XCFramework/releases/download/4.2.0/SDWebImageWebPCoder.xcframework.zip",
+            checksum: "49af29505abd4e95a34a5b3efe0d28ccdcaea0504ef596a8283399d8459539c5"
         ),
         .binaryTarget(
             name: "libwebp",
-            url: "https://github.com/xenonClient/Lynx-XCFramework/releases/download/4.0.3/libwebp.xcframework.zip",
-            checksum: "285ea11d32536a4fbb2c12a1d0de62bfd98b4e714137db4e201d78f71bbb4763"
+            url: "https://github.com/xenonClient/Lynx-XCFramework/releases/download/4.2.0/libwebp.xcframework.zip",
+            checksum: "d5f6214501f71a51cec960f9cf0d80f97ee053bdbaf1f9a7baad777b5dfcebf3"
         ),
     ]
 )
