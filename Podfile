@@ -1,3 +1,6 @@
+source 'https://cdn.cocoapods.org/'
+source 'https://github.com/lynx-family/Specs.git'
+
 platform :ios, '12.0'
 
 target 'Lynx-XcFramework' do
